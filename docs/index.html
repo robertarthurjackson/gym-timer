@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Gym Timer</title>
+<meta name="description" content="Free set counter and rest timer. No ads, no accounts.">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Gym Timer">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<style>
+:root {
+  --bg: #000; --card: #161618; --card2: #232326; --text: #fff; --dim: #8e8e93;
+  --go: #40d98c; --rest: #5a9bff; --stop: #ff5a5f;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--text); height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", system-ui, sans-serif;
+  touch-action: manipulation; -webkit-user-select: none; user-select: none; overscroll-behavior: none;
+}
+#app {
+  max-width: 480px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column;
+  padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px);
+}
+button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+.top { display: flex; align-items: center; height: 44px; position: relative; }
+.top h2 { position: absolute; left: 0; right: 0; text-align: center; margin: 0; font-size: 17px; pointer-events: none; }
+.back { width: 40px; height: 40px; border-radius: 50%; background: var(--card2); font-size: 22px; line-height: 1; z-index: 1; }
+.grow { flex: 1; }
+
+.hero { text-align: center; margin: 9vh 0 6vh; }
+.hero img { width: 84px; height: 84px; border-radius: 20px; }
+.hero h1 { font-size: 44px; font-weight: 800; margin: 14px 0 6px; letter-spacing: -0.5px; }
+.hero p { color: var(--dim); margin: 0; }
+.mode {
+  display: flex; align-items: center; gap: 16px; width: 100%; text-align: left;
+  background: var(--card); border-radius: 20px; padding: 20px; margin-bottom: 14px;
+}
+.mode .ic { font-size: 28px; width: 40px; text-align: center; }
+.mode b { display: block; font-size: 22px; }
+.mode small { color: var(--dim); font-size: 15px; }
+.mode .chev { margin-left: auto; color: var(--dim); font-size: 22px; }
+.hint { margin-top: auto; background: var(--card); border-radius: 14px; padding: 12px 14px; color: var(--dim); font-size: 14px; text-align: center; }
+.hint b { color: var(--text); }
+
+.group { background: var(--card); border-radius: 16px; margin: 20px 0; }
+.row { display: flex; align-items: center; padding: 12px 14px; gap: 12px; }
+.row + .row { border-top: 1px solid #2a2a2d; }
+.row span { flex: 1; font-size: 17px; }
+.row output { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 19px; min-width: 52px; text-align: right; }
+.step { display: flex; background: var(--card2); border-radius: 10px; overflow: hidden; }
+.step button { width: 48px; height: 38px; background: none; font-size: 22px; }
+.step button + button { border-left: 1px solid #3a3a3d; }
+
+.big {
+  width: 100%; min-height: 72px; border-radius: 20px; font-size: 22px; font-weight: 700;
+  background: var(--go); color: #000;
+}
+.big.alt { background: #e5e5ea; }
+.big.rest { background: var(--rest); }
+.pair { display: flex; gap: 12px; }
+.link { background: none; color: var(--stop); font-size: 16px; padding: 14px; width: 100%; }
+
+.sets { text-align: center; margin-top: 8px; }
+.sets h3 { font-size: 28px; margin: 0 0 10px; }
+.dots { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.dots i { width: 14px; height: 14px; border-radius: 50%; background: #333; }
+.dots i.on { background: var(--go); }
+
+.ring { position: relative; width: min(82vw, 340px); aspect-ratio: 1; margin: 24px auto; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 14; }
+.ring .track { stroke: #222; }
+.ring .bar { stroke-linecap: round; transition: stroke-dashoffset .1s linear; }
+.ring .mid { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring .t { font-size: min(19vw, 80px); font-weight: 700; font-variant-numeric: tabular-nums; }
+.ring .c { font-weight: 700; letter-spacing: 1.5px; font-size: 16px; }
+
+.msg { font-size: 64px; font-weight: 800; text-align: center; margin: auto 0; }
+.msg small { display: block; font-size: 18px; color: var(--dim); font-weight: 500; margin-top: 8px; }
+.presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.presets button { background: var(--card2); border-radius: 12px; height: 44px; font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.presets button.on { background: var(--go); color: #000; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+const app = document.getElementById('app');
+const C = 2 * Math.PI * 88;
+const fmt = s => { s = Math.ceil(Math.max(0, s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+const cfg = { repSets: 4, repRest: 90, tSets: 5, tWork: 45, tRest: 30, cSecs: 60 };
+try { Object.assign(cfg, JSON.parse(localStorage.getItem('gymtimer') || '{}')); } catch {}
+const save = () => { try { localStorage.setItem('gymtimer', JSON.stringify(cfg)); } catch {} };
+
+let screen = 'home';
+let s = null; // active session: { phase, done, sets, dur, end, paused }
+let lastWhole = 0;
+
+// ---- sound, vibration, screen wake ----
+let ac;
+function unlockAudio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch {} }
+  if (ac && ac.state !== 'running') ac.resume();
+}
+function beep(freq, dur, at = 0) {
+  if (!ac) return;
+  const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + at;
+  o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(0.6, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(ac.destination);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+const buzz = p => { try { navigator.vibrate && navigator.vibrate(p); } catch {} };
+const tickSound = () => { beep(880, 0.12); buzz(40); };
+const doneSound = () => { beep(1046, 0.18); beep(1318, 0.18, 0.2); beep(1568, 0.4, 0.4); buzz([200, 100, 200]); };
+
+let lock = null;
+async function keepAwake(on) {
+  try {
+    if (on && !lock && 'wakeLock' in navigator) {
+      lock = await navigator.wakeLock.request('screen');
+      lock.addEventListener('release', () => { lock = null; });
+    } else if (!on && lock) { await lock.release(); lock = null; }
+  } catch {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && s) { keepAwake(true); unlockAudio(); }
+});
+
+// ---- timer engine (timestamp based, so it catches up after the phone sleeps) ----
+const remaining = () => s.paused != null ? s.paused : Math.max(0, (s.end - Date.now()) / 1000);
+function startPhase(phase, secs, base = Date.now()) {
+  Object.assign(s, { phase, dur: secs, end: base + secs * 1000, paused: null });
+  lastWhole = Math.ceil(secs);
+}
+function timed() { return s.end != null && s.phase !== 'lift' && s.phase !== 'done' && s.phase !== 'finished'; }
+
+function phaseEnded(base, sound) {
+  if (sound) doneSound();
+  if (screen === 'rep') { s.phase = 'lift'; s.end = null; }
+  else if (screen === 'custom') { s.phase = 'finished'; s.end = null; }
+  else if (s.phase === 'work') {
+    s.done++;
+    if (s.done >= s.sets) { s.phase = 'done'; s.end = null; }
+    else startPhase('rest', cfg.tRest, base);
+  } else startPhase('work', cfg.tWork, base);
+}
+
+setInterval(() => {
+  if (!s || !timed() || s.paused != null) return;
+  const before = s.phase;
+  while (timed() && s.paused == null && Date.now() >= s.end) {
+    const late = Date.now() - s.end > 1500;
+    phaseEnded(s.end, !late);
+  }
+  if (s.phase !== before) return render();
+  const whole = Math.ceil(remaining());
+  if (whole !== lastWhole && whole >= 1 && whole <= 3) tickSound();
+  lastWhole = whole;
+  updateRing();
+}, 100);
+
+// ---- views ----
+const stepper = (label, key, step, min, max, isTime) => `
+  <div class="row"><span>${label}</span>
+    <output>${isTime ? fmt(cfg[key]) : cfg[key]}</output>
+    <div class="step">
+      <button data-act="adj" data-key="${key}" data-d="${-step}" data-min="${min}" data-max="${max}" aria-label="Less">−</button>
+      <button data-act="adj" data-key="${key}" data-d="${step}" data-min="${min}" data-max="${max}" aria-label="More">+</button>
+    </div></div>`;
+
+const header = title => `<div class="top"><button class="back" data-act="home" aria-label="Back">‹</button><h2>${title}</h2></div>`;
+
+const ring = (secs, prog, caption, color) => `
+  <div class="ring"><svg viewBox="0 0 200 200"><circle class="track" cx="100" cy="100" r="88"/>
+    <circle class="bar" id="bar" cx="100" cy="100" r="88" stroke="${color}" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - prog)}"/></svg>
+    <div class="mid"><div class="t" id="t">${fmt(secs)}</div><div class="c" style="color:${color}">${caption}</div></div></div>`;
+
+const setsHeader = () => `<div class="sets"><h3>Set ${Math.min(s.done + 1, s.sets)} of ${s.sets}</h3>
+  <div class="dots">${Array.from({ length: s.sets }, (_, i) => `<i class="${i < s.done ? 'on' : ''}"></i>`).join('')}</div></div>`;
+
+const complete = () => `<div class="msg" style="color:var(--go)">Done!<small>${s.sets} sets complete</small></div>
+  <button class="big" data-act="home">Finish</button>`;
+
+function liveRing() {
+  const resting = s.phase === 'rest';
+  const color = resting ? 'var(--rest)' : 'var(--go)';
+  const cap = { rest: 'REST', work: 'WORK', run: s.paused != null ? 'PAUSED' : 'GO' }[s.phase];
+  return ring(remaining(), remaining() / s.dur, s.paused != null && s.phase !== 'run' ? 'PAUSED' : cap, color);
+}
+
+const views = {
+  home: () => `
+    <div class="hero"><img src="icon-180.png" alt=""><h1>Gym Timer</h1><p>Choose your session</p></div>
+    <button class="mode" data-act="go" data-to="rep"><span class="ic">🔁</span><div><b>Rep Sets</b><small>Tap after each set, auto rest</small></div><span class="chev">›</span></button>
+    <button class="mode" data-act="go" data-to="timed"><span class="ic">⏱️</span><div><b>Timed Sets</b><small>Work and rest on autopilot</small></div><span class="chev">›</span></button>
+    <button class="mode" data-act="go" data-to="custom"><span class="ic">⏳</span><div><b>Custom Time</b><small>One countdown, any length</small></div><span class="chev">›</span></button>
+    ${installHint()}`,
+
+  rep: () => {
+    if (!s) return header('Rep Sets') + `<div class="group">${stepper('Sets', 'repSets', 1, 1, 20)}${stepper('Rest', 'repRest', 15, 15, 600, true)}</div>
+      <div class="grow"></div><button class="big" data-act="start">Start</button>`;
+    let body;
+    if (s.phase === 'done') body = complete();
+    else if (s.phase === 'rest') body = liveRing() + `<div class="grow"></div><div class="pair">
+      <button class="big alt" data-act="plus15">+15s</button><button class="big rest" data-act="skip">Skip</button></div>`;
+    else body = `<div class="msg">Lift!<small>Tap when your set is done</small></div><button class="big" data-act="setDone">Set Done</button>`;
+    return header('Rep Sets') + setsHeader() + body + (s.phase === 'done' ? '' : `<button class="link" data-act="home">End session</button>`);
+  },
+
+  timed: () => {
+    if (!s) return header('Timed Sets') + `<div class="group">${stepper('Sets', 'tSets', 1, 1, 30)}${stepper('Work', 'tWork', 5, 5, 600, true)}${stepper('Rest', 'tRest', 5, 5, 600, true)}</div>
+      <div class="grow"></div><button class="big" data-act="start">Start</button>`;
+    const body = s.phase === 'done' ? complete() : liveRing() + `<div class="grow"></div><div class="pair">
+      <button class="big alt" data-act="pause">${s.paused != null ? 'Resume' : 'Pause'}</button>
+      <button class="big ${s.phase === 'rest' ? 'rest' : ''}" data-act="skip">Skip</button></div>`;
+    return header('Timed Sets') + setsHeader() + body + (s.phase === 'done' ? '' : `<button class="link" data-act="home">End session</button>`);
+  },
+
+  custom: () => {
+    if (!s) return header('Custom Time') + ring(cfg.cSecs, 1, 'READY', 'var(--go)') + `
+      <div class="presets">${[30, 60, 90, 120, 180, 300].map(p => `<button class="${p === cfg.cSecs ? 'on' : ''}" data-act="preset" data-v="${p}">${fmt(p)}</button>`).join('')}</div>
+      <div class="group">${stepper('Time', 'cSecs', 5, 5, 3600, true)}</div>
+      <div class="grow"></div><button class="big" data-act="start">Start</button>`;
+    if (s.phase === 'finished') return header('Custom Time') + ring(0, 0, "TIME'S UP", 'var(--go)') + `<div class="grow"></div>
+      <div class="pair"><button class="big alt" data-act="reset">Done</button><button class="big" data-act="start">Again</button></div>`;
+    return header('Custom Time') + liveRing() + `<div class="grow"></div>
+      <div class="pair"><button class="big alt" data-act="pause">${s.paused != null ? 'Resume' : 'Pause'}</button>
+      <button class="big" data-act="reset">Reset</button></div>`;
+  },
+};
+
+function installHint() {
+  const standalone = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  if (standalone || !ios) return '';
+  return `<div class="hint">Install it: tap <b>Share</b>, then <b>Add to Home Screen</b></div>`;
+}
+
+function render() { app.innerHTML = views[screen](); }
+function updateRing() {
+  const t = document.getElementById('t'), bar = document.getElementById('bar');
+  if (!t || !s || !s.dur) return;
+  t.textContent = fmt(remaining());
+  bar.setAttribute('stroke-dashoffset', C * (1 - remaining() / s.dur));
+}
+
+// ---- actions ----
+const actions = {
+  go: d => { screen = d.to; s = null; render(); },
+  home: () => { screen = 'home'; s = null; keepAwake(false); render(); },
+  adj: d => {
+    cfg[d.key] = Math.min(+d.max, Math.max(+d.min, cfg[d.key] + +d.d));
+    save(); render();
+  },
+  preset: d => { cfg.cSecs = +d.v; save(); render(); },
+  start: () => {
+    keepAwake(true);
+    if (screen === 'rep') s = { phase: 'lift', done: 0, sets: cfg.repSets };
+    else if (screen === 'timed') { s = { done: 0, sets: cfg.tSets }; startPhase('work', cfg.tWork); }
+    else { s = {}; startPhase('run', cfg.cSecs); }
+    render();
+  },
+  setDone: () => {
+    s.done++;
+    if (s.done >= s.sets) { s.phase = 'done'; doneSound(); keepAwake(false); }
+    else startPhase('rest', cfg.repRest);
+    render();
+  },
+  plus15: () => { s.end += 15000; s.dur += 15; updateRing(); },
+  skip: () => { phaseEnded(Date.now(), false); render(); },
+  pause: () => {
+    if (s.paused != null) { s.end = Date.now() + s.paused * 1000; s.paused = null; }
+    else s.paused = remaining();
+    render();
+  },
+  reset: () => { s = null; keepAwake(false); render(); },
+};
+
+app.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  unlockAudio();
+  actions[b.dataset.act](b.dataset);
+});
+
+render();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
